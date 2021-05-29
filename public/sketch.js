@@ -1,72 +1,31 @@
-function Cell(x, y, xSize, ySize, columnIndex, rowIndex, isAlive = false) {
-	this.x = x;
-	this.y = y;
-	this.xSize = xSize;
-	this.ySize = ySize;
-	this.columnIndex = columnIndex;
-	this.rowIndex = rowIndex;
-	this.isAlive = isAlive;
-}
+const
+	columns = 50,
+	rows = 25,
+	width = 1000,
+	height = 500,
+	xSize = width / columns,
+	ySize = height / rows;
 
-Cell.prototype.contains = function (x, y) {
-	if (
-		x >= this.x &&
-		x <= this.x + this.xSize &&
-		y >= this.y &&
-		y <= this.y + this.ySize
-	) return true;
-	return false;
-}
+let
+	grid,
+	pause = true,
+	pauseButton;
 
-Cell.prototype.getColumnIndex = function () {
-	return this.columnIndex;
-}
-
-Cell.prototype.getRowIndex = function () {
-	return this.rowIndex;
-}
-
-Cell.prototype.show = function () {
-	if (this.isAlive) fill(0);
-	else fill(255);
-	rect(this.x, this.y, this.xSize, this.ySize);
-}
-
-Cell.prototype.update = function(nbrOfAliveNeighbourCells) {
-	if (nbrOfAliveNeighbourCells) {
-		if (this.isAlive && nbrOfAliveNeighbourCells < 2) this.changeState();
-		else if (this.isAlive && nbrOfAliveNeighbourCells > 3) this.changeState();
-		else if (!this.isAlive && nbrOfAliveNeighbourCells === 3) this.changeState();
-	}
-}
-
-Cell.prototype.changeState = function () {
-		this.isAlive = !this.isAlive;
-}
-
-function make2DArray(cols, rows) {
-	const
-		arr = new Array(cols),
-		xSize = width / cols,
-		ySize = height / rows;
-
+function make2DArray(cols, rows, callback = null) {
+	const arr = new Array(cols);
 	for (let i = 0; i < cols; i++) {
 		arr[i] = new Array(rows);
-		for (let j = 0; j < rows; j++)
-			arr[i][j] = new Cell(i * xSize, j * ySize, xSize, ySize, i, j);
+		if (callback)
+			for (let j = 0; j < rows; j++)
+				arr[i][j] = callback(i, j);
 	}
-
 	return arr;
 }
 
-const columns = 130, rows = 65, width = 1000, height = 500;
-let grid, pause = false, pauseButton;
-
 function findCell(x, y) {
-	for (let i = 0; i < columns; i++) {
+	for (let i = 0; i < columns; i++)
 		for (let j = 0; j < rows; j++)
-			if (grid[i][j].contains(mouseX, mouseY)) return grid[i][j];
-	}
+			if (grid[i][j].contains(mouseX, mouseY, xSize, ySize)) return grid[i][j];
 	return null;
 }
 
@@ -79,32 +38,23 @@ function isValidNeighbourCell(columnIndex, rowIndex) {
 function getNeighbourCells(cell) {
 	const
 		neighbourCells = [],
-		columnIndex = cell.getColumnIndex(),
-		rowIndex = cell.getRowIndex();
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex - 1, rowIndex - 1)
-			? grid[columnIndex - 1][rowIndex - 1] : null);
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex, rowIndex - 1)
-			? grid[columnIndex][rowIndex - 1] : null);
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex + 1, rowIndex - 1)
-			? grid[columnIndex + 1][rowIndex - 1] : null);
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex - 1, rowIndex)
-			? grid[columnIndex - 1][rowIndex] : null);
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex + 1, rowIndex)
-			? grid[columnIndex + 1][rowIndex] : null);
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex - 1, rowIndex + 1)
-			? grid[columnIndex - 1][rowIndex + 1] : null);
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex, rowIndex + 1)
-			? grid[columnIndex][rowIndex + 1] : null);
-	neighbourCells.push(
-		isValidNeighbourCell(columnIndex + 1, rowIndex + 1)
-			? grid[columnIndex + 1][rowIndex + 1] : null);
+		columnIndex = cell.columnIndex,
+		rowIndex = cell.rowIndex,
+		neighboursIndex = [
+			[columnIndex - 1, rowIndex - 1],
+			[columnIndex, rowIndex - 1],
+			[columnIndex + 1, rowIndex - 1],
+			[columnIndex - 1, rowIndex],
+			[columnIndex + 1, rowIndex],
+			[columnIndex - 1, rowIndex + 1],
+			[columnIndex, rowIndex + 1],
+			[columnIndex + 1, rowIndex + 1]
+		];
+
+	for (let i = 0; i < neighboursIndex.length; i++)
+		neighbourCells.push(
+			isValidNeighbourCell(neighboursIndex[i][0], neighboursIndex[i][1])
+				? grid[neighboursIndex[i][0]][neighboursIndex[i][1]] : null);
 	return neighbourCells;
 }
 
@@ -116,28 +66,41 @@ function evaluateNeighbourCells(neighbourCells) {
 }
 
 function updateGrid() {
-	for (let i = 0; i < columns; i++) {
+	const nextGrid = make2DArray(columns, rows);
+	for (let i = 0; i < columns; i++)
 		for (let j = 0; j < rows; j++) {
 			const cell = grid[i][j];
-			if (!pause) {
-				const neighbourCells = getNeighbourCells(cell);
-				const nbrOfAliveNeighbourCells = evaluateNeighbourCells(neighbourCells);
-				cell.update(nbrOfAliveNeighbourCells);
-			}
-			cell.show();
+			const neighbourCells = getNeighbourCells(cell);
+			const nbrOfAliveNeighbourCells = evaluateNeighbourCells(neighbourCells);
+			nextGrid[i][j] = cell.getNewUpdated(nbrOfAliveNeighbourCells);
 		}
-	}
+	grid = nextGrid;
+}
+
+function showGrid() {
+	for (let i = 0; i < columns; i++)
+		for (let j = 0; j < rows; j++)
+			grid[i][j].show(xSize, ySize);
+}
+
+function changeCellState() {
+	const clickedCell = findCell(mouseX, mouseY);
+	if (clickedCell) clickedCell.changeState();
 }
 
 function setup() {
-	grid = make2DArray(columns, rows);
+	frameRate(15);
+	grid = make2DArray(columns, rows, (i, j) =>
+		new Cell(i * xSize, j * ySize, i, j));
 
 	createCanvas(width, height);
-	strokeWeight(2);
-	background(255);
+	strokeWeight(0);
+	background(0);
 
-	pauseButton = createButton(!pause ? 'stop' : 'start');
-	pauseButton.mousePressed(function () { pause = !pause; });
+	pauseButton = createButton('pause - unpause');
+	pauseButton.mousePressed(function () {
+		pause = !pause;
+	});
 
 	// for (let i = 0; i <= columns; i++) {
 	// 	line(width / columns * i, 0, width / columns * i, height);
@@ -147,16 +110,15 @@ function setup() {
 	// }
 }
 
-function changeCellState() {
-	const clickedCell = findCell(mouseX, mouseY);
-	if (clickedCell) clickedCell.changeState();
-}
-
 function mousePressed() {
 	changeCellState();
 }
 
+function keyPressed() {
+	if (keyCode === 32) pause = !pause;
+}
+
 function draw() {
-	// pauseButton.text(!pause ? 'stop' : 'start');
-	updateGrid();
+	if (!pause) updateGrid();
+	showGrid();
 }
