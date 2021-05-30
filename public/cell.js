@@ -7,18 +7,16 @@ function Cell(x, y, columnIndex, rowIndex, isAlive = false) {
 }
 
 Cell.prototype.contains = function (x, y, xSize, ySize) {
-	if (
-		x >= this.x &&
+	return x >= this.x &&
 		x <= this.x + xSize &&
 		y >= this.y &&
-		y <= this.y + ySize
-	) return true;
-	return false;
+		y <= this.y + ySize;
 }
 
 Cell.prototype.show = function (xSize, ySize) {
-	if (this.isAlive) fill(255);
-	else fill(0);
+	if (this.isAlive) fill(0
+	);
+	else fill(255);
 	rect(this.x, this.y, xSize, ySize);
 }
 
